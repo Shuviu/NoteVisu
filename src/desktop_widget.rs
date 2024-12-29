@@ -1,27 +1,65 @@
-use iced::widget::column;
-use iced::widget::text;
+use crate::note::{self, Note};
 use iced::widget::Column;
-
-use crate::note;
+use iced::Application;
+use iced::*;
+use std::array::from_fn;
+use std::fs;
+use std::path::Path;
+use widget::Text;
 
 #[derive(Default)]
 pub struct Widget {
     notes: Vec<note::Note>,
 }
 
+#[derive(Debug)]
+pub enum Message {}
+
 impl Widget {
-    pub fn update(&mut self, message: Message) {}
+    pub fn new() -> Self {
+        let mut widget: Widget = Widget::default();
+        let str_path: &str = "/home/shuviu/01_Data/90_Notes/";
+        let path: &Path = Path::new(&str_path);
 
-    pub fn view(&self) -> Column<Message> {
-        let note = text("test");
+        if !path.is_dir() {
+            widget
+                .notes
+                .push(Note::new(String::from("ALARM"), String::from("ALARM")));
+            return widget;
+        }
 
-        let interface = column![note];
-
-        interface
+        for entry in path.read_dir().expect("") {
+            if let Ok(entry) = entry {
+                println!("Path: {}", entry.path().to_string_lossy());
+            }
+        }
+        widget
+            .notes
+            .push(Note::new(String::from("SUCCESS"), String::from("SUCCESS")));
+        widget
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum Message {
-    Reload,
+impl Application for Widget {
+    type Message = Message;
+    type Executor = iced::executor::Default;
+    type Flags = ();
+    type Theme = theme::Theme;
+
+    fn title(&self) -> String {
+        String::from("Hello World")
+    }
+
+    fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
+        (Self::new(), Command::none())
+    }
+
+    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+        Command::none()
+    }
+
+    fn view(&self) -> Element<Self::Message> {
+        let text: Text = Text::new(&self.notes[0].title).size(40);
+        Column::new().push(text).into()
+    }
 }
