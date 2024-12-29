@@ -30,12 +30,12 @@ impl Widget {
 
         for entry in path.read_dir().expect("") {
             if let Ok(entry) = entry {
-                println!("Path: {}", entry.path().to_string_lossy());
+                let filename: String = entry.file_name().to_string_lossy().to_string();
+                let file_path: String = entry.path().to_string_lossy().to_string();
+
+                widget.notes.push(Note::new(filename, file_path));
             }
         }
-        widget
-            .notes
-            .push(Note::new(String::from("SUCCESS"), String::from("SUCCESS")));
         widget
     }
 }
