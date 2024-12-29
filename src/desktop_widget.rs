@@ -1,11 +1,9 @@
 use crate::note::{self, Note};
 use iced::widget::Column;
+use iced::widget::Text;
 use iced::Application;
 use iced::*;
-use std::array::from_fn;
-use std::fs;
 use std::path::Path;
-use widget::Text;
 
 #[derive(Default)]
 pub struct Widget {
@@ -59,7 +57,13 @@ impl Application for Widget {
     }
 
     fn view(&self) -> Element<Self::Message> {
-        let text: Text = Text::new(&self.notes[0].title).size(40);
-        Column::new().push(text).into()
+        let mut column = Column::new();
+
+        for note in &self.notes {
+            let text: Text = Text::new(&note.title).size(20);
+            column = column.push(text);
+        }
+
+        column.into()
     }
 }
