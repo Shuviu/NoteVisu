@@ -16,7 +16,7 @@ impl Note {
             path,
             creation_date: Local::now().date_naive(),
             is_completed: false,
-            is_focused: true,
+            is_focused: false,
             body: String::from(""),
         }
     }

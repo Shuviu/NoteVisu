@@ -4,14 +4,30 @@ use iced::widget::Text;
 use iced::Application;
 use iced::*;
 use std::path::Path;
+use std::usize;
+use widget::Button;
+use widget::Checkbox;
+use widget::Row;
+
+#[derive(Debug, Default)]
+pub enum Mode {
+    #[default]
+    Viewing,
+    FocusEdit,
+}
+
+#[derive(Debug, Clone)]
+pub enum Message {
+    SwitchToFocusEdit,
+    ApplyFocusEdit,
+    ToggleFocus(usize),
+}
 
 #[derive(Default)]
 pub struct Widget {
     notes: Vec<note::Note>,
+    current_mode: Mode,
 }
-
-#[derive(Debug)]
-pub enum Message {}
 
 impl Widget {
     pub fn new() -> Self {
@@ -53,15 +69,52 @@ impl Application for Widget {
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+        match message {
+            Message::SwitchToFocusEdit => {
+                self.current_mode = Mode::FocusEdit;
+            }
+            Message::ApplyFocusEdit => {
+                self.current_mode = Mode::Viewing;
+            }
+            Message::ToggleFocus(index) => {
+                self.notes[index].is_focused = !self.notes[index].is_focused;
+            }
+        }
+
         Command::none()
     }
 
     fn view(&self) -> Element<Self::Message> {
         let mut column = Column::new();
 
-        for note in &self.notes {
-            let text: Text = Text::new(&note.title).size(20);
-            column = column.push(text);
+        column = column.push(
+            Row::new().push(Button::new("Manage Focus").on_press(Message::SwitchToFocusEdit)),
+        );
+
+        match self.current_mode {
+            Mode::Viewing => {
+                for note in self.notes.iter() {
+                    if !note.is_focused {
+                        continue;
+                    }
+                    let text: Text = Text::new(&note.title).size(20);
+                    column = column.push(text);
+                }
+            }
+            Mode::FocusEdit => {
+                for (index, note) in self.notes.iter().enumerate() {
+                    let mut row = Row::new();
+                    row = row
+                        .push(
+                            Checkbox::new("", note.is_focused)
+                                .on_toggle(move |_state| Message::ToggleFocus(index)),
+                        )
+                        .push(Text::new(&note.title));
+                    column = column.push(row);
+                }
+
+                column = column.push(Button::new("Apply").on_press(Message::ApplyFocusEdit))
+            }
         }
 
         column.into()
