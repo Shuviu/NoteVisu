@@ -1,3 +1,5 @@
+use crate::io_handler;
+use crate::meta_handler;
 use crate::note::{self, Note};
 use iced::widget::Column;
 use iced::widget::Text;
@@ -28,7 +30,7 @@ pub enum Message {
 // Application Struct Containing States
 #[derive(Default)]
 pub struct Widget {
-    notes: Vec<note::Note>,
+    pub notes: Vec<note::Note>,
     current_mode: Mode,
 }
 
@@ -41,36 +43,20 @@ impl Widget {
 
         // check if path is valid
         if !path.is_dir() {
-            widget
-                .notes
-                .push(Note::new(String::from("ALARM"), String::from("ALARM")));
+            widget.notes.push(Note::new(
+                String::from("ALARM"),
+                String::from("ALARM"),
+                true,
+                false,
+            ));
             return widget;
         }
 
-        widget = read_stored_notes(path, widget);
+        widget = io_handler::read_stored_notes(path, widget);
 
         // return widget with updated state
         widget
     }
-}
-
-fn read_stored_notes(path: &Path, mut application: Widget) -> Widget {
-    // read in all filenames in the directory
-    for entry in path.read_dir().expect("") {
-        if let Ok(entry) = entry {
-            let mut filename: String = entry.file_name().to_string_lossy().to_string();
-            filename = filename
-                .split('.')
-                .next()
-                .expect("No Filename Found")
-                .to_string();
-            let file_path: String = entry.path().to_string_lossy().to_string();
-
-            application.notes.push(Note::new(filename, file_path));
-        }
-    }
-
-    application
 }
 
 impl Application for Widget {
@@ -98,6 +84,15 @@ impl Application for Widget {
             }
             Message::ToggleFocus(index) => {
                 self.notes[index].is_focused = !self.notes[index].is_focused;
+
+                match meta_handler::set_metatag(
+                    Path::new(self.notes[index].path.as_str()),
+                    String::from("user.focus"),
+                    self.notes[index].is_focused.to_string(),
+                ) {
+                    true => println!("Updated Metatag"),
+                    false => println!("Error while updating Metatag"),
+                }
             }
         }
 
