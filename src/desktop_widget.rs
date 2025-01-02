@@ -5,8 +5,10 @@ use iced::widget::Column;
 use iced::widget::Text;
 use iced::Application;
 use iced::*;
+use std::clone;
 use std::path::Path;
 use std::usize;
+use widget::column;
 use widget::Button;
 use widget::Checkbox;
 use widget::Row;
@@ -17,6 +19,7 @@ pub enum Mode {
     #[default]
     Viewing,
     FocusEdit,
+    ViewNote(Note),
 }
 
 // Messages
@@ -25,6 +28,7 @@ pub enum Message {
     SwitchToFocusEdit,
     ApplyFocusEdit,
     ToggleFocus(usize),
+    ViewNote(Note),
 }
 
 // Application Struct Containing States
@@ -46,6 +50,7 @@ impl Widget {
             widget.notes.push(Note::new(
                 String::from("ALARM"),
                 String::from("ALARM"),
+                String::from(""),
                 true,
                 false,
             ));
@@ -94,6 +99,7 @@ impl Application for Widget {
                     false => println!("Error while updating Metatag"),
                 }
             }
+            Message::ViewNote(note) => self.current_mode = Mode::ViewNote(note),
         }
 
         Command::none()
@@ -135,7 +141,10 @@ impl Application for Widget {
                     column = column.push(row);
                 }
                 // Add footer row
-                column = column.push(Button::new("Apply").on_press(Message::ApplyFocusEdit))
+                column = column.push(Button::new("Apply").on_press(Message::ApplyFocusEdit));
+            }
+            Mode::ViewNote(ref note) => {
+                column = column.push(Text::new(&note.body));
             }
         }
 
