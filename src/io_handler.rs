@@ -37,7 +37,7 @@ pub fn read_stored_notes(path: &Path, mut application: Widget) -> Widget {
     application
 }
 
-fn read_note_body(path: PathBuf) -> String {
+pub fn read_note_body(path: PathBuf) -> String {
     let body: Vec<u8> = fs::read(path).expect("Could not read the file");
     String::from_utf8(body).expect("Error While Converting Body to String")
 }

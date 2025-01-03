@@ -5,10 +5,9 @@ use iced::widget::Column;
 use iced::widget::Text;
 use iced::Application;
 use iced::*;
-use std::clone;
 use std::path::Path;
+use std::path::PathBuf;
 use std::usize;
-use widget::column;
 use widget::Button;
 use widget::Checkbox;
 use widget::Row;
@@ -26,9 +25,10 @@ pub enum Mode {
 #[derive(Debug, Clone)]
 pub enum Message {
     SwitchToFocusEdit,
-    ApplyFocusEdit,
+    SwitchToViewing,
     ToggleFocus(usize),
-    ViewNote(Note),
+    ViewNote(usize),
+    EditNote(usize),
 }
 
 // Application Struct Containing States
@@ -84,7 +84,7 @@ impl Application for Widget {
             Message::SwitchToFocusEdit => {
                 self.current_mode = Mode::FocusEdit;
             }
-            Message::ApplyFocusEdit => {
+            Message::SwitchToViewing => {
                 self.current_mode = Mode::Viewing;
             }
             Message::ToggleFocus(index) => {
@@ -99,7 +99,31 @@ impl Application for Widget {
                     false => println!("Error while updating Metatag"),
                 }
             }
-            Message::ViewNote(note) => self.current_mode = Mode::ViewNote(note),
+            Message::ViewNote(index) => {
+                self.current_mode = Mode::ViewNote(self.notes[index].clone())
+            }
+            Message::EditNote(index) => {
+                let mut nvim_process = std::process::Command::new("cosmic-term")
+                    .arg("--")
+                    .arg("nvim")
+                    .arg(&self.notes[index].path)
+                    .spawn()
+                    .expect("could not start nvim");
+
+                match nvim_process.wait() {
+                    Ok(status) => {
+                        if status.success() {
+                            println!("Exited nvim_process successfully");
+                        } else {
+                            println!("Errow while exiting nvim_process")
+                        }
+                    }
+                    Err(e) => println!("{}", e),
+                }
+
+                self.notes[index].body =
+                    io_handler::read_note_body(PathBuf::from(&self.notes[index].path))
+            }
         }
 
         Command::none()
@@ -116,12 +140,17 @@ impl Application for Widget {
         match self.current_mode {
             // Create the viewing mode layout
             Mode::Viewing => {
-                for note in self.notes.iter() {
+                for (index, note) in self.notes.iter().enumerate() {
                     if !note.is_focused {
                         continue;
                     }
-                    let text: Text = Text::new(&note.title).size(20);
-                    column = column.push(text);
+                    let mut row = Row::new();
+                    let note_title: Text = Text::new(&note.title).size(20);
+                    let view_btn = Button::new("View Content").on_press(Message::ViewNote(index));
+                    let edit_btn = Button::new("Edit Note").on_press(Message::EditNote(index));
+                    row = row.push(note_title).push(view_btn).push(edit_btn);
+
+                    column = column.push(row);
                 }
             }
             // Create the FocusEdit Mode layout
@@ -141,10 +170,11 @@ impl Application for Widget {
                     column = column.push(row);
                 }
                 // Add footer row
-                column = column.push(Button::new("Apply").on_press(Message::ApplyFocusEdit));
+                column = column.push(Button::new("Apply").on_press(Message::SwitchToViewing));
             }
             Mode::ViewNote(ref note) => {
                 column = column.push(Text::new(&note.body));
+                column = column.push(Button::new("Done").on_press(Message::SwitchToViewing))
             }
         }
 
