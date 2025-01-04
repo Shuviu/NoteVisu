@@ -19,7 +19,6 @@ pub fn read_stored_notes(path: &Path, mut application: Widget) -> Widget {
             application.notes.push(Note::new(
                 filename,
                 file_path,
-                read_note_body(entry.path()),
                 meta_handler::check_for_metatag(
                     entry.path(),
                     String::from("user.focus"),

@@ -50,7 +50,6 @@ impl Widget {
             widget.notes.push(Note::new(
                 String::from("ALARM"),
                 String::from("ALARM"),
-                String::from(""),
                 true,
                 false,
             ));
@@ -120,9 +119,6 @@ impl Application for Widget {
                     }
                     Err(e) => println!("{}", e),
                 }
-
-                self.notes[index].body =
-                    io_handler::read_note_body(PathBuf::from(&self.notes[index].path))
             }
         }
 
@@ -173,7 +169,9 @@ impl Application for Widget {
                 column = column.push(Button::new("Apply").on_press(Message::SwitchToViewing));
             }
             Mode::ViewNote(ref note) => {
-                column = column.push(Text::new(&note.body));
+                column = column.push(Text::new(io_handler::read_note_body(PathBuf::from(
+                    &note.path,
+                ))));
                 column = column.push(Button::new("Done").on_press(Message::SwitchToViewing))
             }
         }
