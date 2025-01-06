@@ -19,6 +19,7 @@ pub enum Mode {
     Viewing,
     FocusEdit,
     ViewNote(Note),
+    ViewCompleted,
 }
 
 // Messages
@@ -29,6 +30,8 @@ pub enum Message {
     ToggleFocus(usize),
     ViewNote(usize),
     EditNote(usize),
+    ViewCompleted,
+    ToggleCompleted(usize),
 }
 
 // Application Struct Containing States
@@ -67,7 +70,11 @@ impl Application for Widget {
     type Message = Message;
     type Executor = iced::executor::Default;
     type Flags = ();
-    type Theme = theme::Theme;
+    type Theme = iced_style::Theme;
+
+    fn theme(&self) -> Self::Theme {
+        iced_style::Theme::TokyoNight
+    }
 
     fn title(&self) -> String {
         String::from("Hello World")
@@ -120,34 +127,63 @@ impl Application for Widget {
                     Err(e) => println!("{}", e),
                 }
             }
+            Message::ViewCompleted => self.current_mode = Mode::ViewCompleted,
+            Message::ToggleCompleted(index) => {
+                self.notes[index].is_completed = !self.notes[index].is_completed;
+                meta_handler::set_metatag(
+                    Path::new(self.notes[index].path.as_str()),
+                    String::from("user.completed"),
+                    self.notes[index].is_completed.to_string(),
+                );
+            }
         }
 
         Command::none()
     }
 
     fn view(&self) -> Element<Self::Message> {
-        let mut column = Column::new();
-
+        let mut main_pane = Row::new();
+        let mut sidebar = Column::new().padding(20);
+        let mut view_screen = Column::new().padding(20);
         // create the universal header layout
-        column = column.push(
-            Row::new().push(Button::new("Manage Focus").on_press(Message::SwitchToFocusEdit)),
-        );
+        sidebar = sidebar
+            .push(Button::new("Show Focused").on_press(Message::SwitchToViewing))
+            .push(Button::new("Manage Focus").on_press(Message::SwitchToFocusEdit))
+            .push(Button::new("Show Completed").on_press(Message::ViewCompleted))
+            .push(Button::new("Analytics"));
 
         match self.current_mode {
             // Create the viewing mode layout
             Mode::Viewing => {
+                view_screen = view_screen.push(Text::new("{ \n  FocusedToDos: [ \n"));
                 for (index, note) in self.notes.iter().enumerate() {
                     if !note.is_focused {
                         continue;
                     }
-                    let mut row = Row::new();
-                    let note_title: Text = Text::new(&note.title).size(20);
-                    let view_btn = Button::new("View Content").on_press(Message::ViewNote(index));
-                    let edit_btn = Button::new("Edit Note").on_press(Message::EditNote(index));
-                    row = row.push(note_title).push(view_btn).push(edit_btn);
+                    let mut row = Row::new().padding(10);
+                    let note_title: Text = Text::new(&note.title);
+                    let view_btn = Button::new("View Content")
+                        .on_press(Message::ViewNote(index))
+                        .padding(10);
+                    let edit_btn = Button::new("Edit Note")
+                        .on_press(Message::EditNote(index))
+                        .padding(10);
+                    let done_btn = Button::new("Done")
+                        .on_press(Message::ToggleCompleted(index))
+                        .padding(10);
+                    row = row
+                        .push(Text::new("            { ToDo: "))
+                        .push(note_title)
+                        .push(view_btn)
+                        .push(edit_btn)
+                        .push(done_btn)
+                        .push(Text::new("}, "));
 
-                    column = column.push(row);
+                    view_screen = view_screen.push(row);
                 }
+
+                view_screen = view_screen.push(Text::new("         ]"));
+                view_screen = view_screen.push(Text::new("}"));
             }
             // Create the FocusEdit Mode layout
             Mode::FocusEdit => {
@@ -163,19 +199,48 @@ impl Application for Widget {
                         )
                         // Add note title
                         .push(Text::new(&note.title));
-                    column = column.push(row);
+                    view_screen = view_screen.push(row);
                 }
                 // Add footer row
-                column = column.push(Button::new("Apply").on_press(Message::SwitchToViewing));
+                view_screen =
+                    view_screen.push(Button::new("Apply").on_press(Message::SwitchToViewing));
             }
             Mode::ViewNote(ref note) => {
-                column = column.push(Text::new(io_handler::read_note_body(PathBuf::from(
-                    &note.path,
-                ))));
-                column = column.push(Button::new("Done").on_press(Message::SwitchToViewing))
+                view_screen = view_screen.push(Text::new(io_handler::read_note_body(
+                    PathBuf::from(&note.path),
+                )));
+                view_screen =
+                    view_screen.push(Button::new("Done").on_press(Message::SwitchToViewing))
+            }
+
+            Mode::ViewCompleted => {
+                view_screen = view_screen.push(Text::new("{ \n  FocusedToDos: [ \n"));
+                for (index, note) in self.notes.iter().enumerate() {
+                    if !note.is_completed {
+                        continue;
+                    }
+                    let mut row = Row::new();
+                    let note_title: Text = Text::new(&note.title);
+                    let view_btn = Button::new("View Content").on_press(Message::ViewNote(index));
+                    let edit_btn = Button::new("Edit Note").on_press(Message::EditNote(index));
+                    row = row
+                        .push(Text::new("            { ToDo: "))
+                        .push(note_title)
+                        .padding(5)
+                        .push(view_btn)
+                        .padding(5)
+                        .push(edit_btn)
+                        .padding(5)
+                        .push(Text::new("}, "));
+
+                    view_screen = view_screen.push(row);
+                }
+
+                view_screen = view_screen.push(Text::new("         ]"));
+                view_screen = view_screen.push(Text::new("}"));
             }
         }
-
-        column.into()
+        main_pane = main_pane.push(sidebar).push(view_screen);
+        main_pane.into()
     }
 }
